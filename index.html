@@ -45,6 +45,48 @@
             return deg * (Math.PI / 180);
         }
 
+        function getMockOrRealLocation(onSuccess) {
+            let handled = false;
+            
+            const handleFallback = () => {
+                if (!handled) {
+                    handled = true;
+                    console.warn("Using simulated coordinates (browser blocked GPS or timed out).");
+                    onSuccess({ coords: { latitude: 40.7128, longitude: -74.0060 }, isMock: true });
+                }
+            };
+
+            if (!navigator.geolocation) {
+                handleFallback();
+                return;
+            }
+
+            // Give the user 30 seconds to click "Allow" on the permission prompt
+            const waitTime = window.location.protocol === 'file:' ? 4000 : 30000;
+            const timeout = setTimeout(handleFallback, waitTime);
+
+            try {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        if (!handled) {
+                            handled = true;
+                            clearTimeout(timeout);
+                            onSuccess(position);
+                        }
+                    },
+                    (err) => {
+                        clearTimeout(timeout);
+                        handleFallback();
+                    },
+                    { enableHighAccuracy: true, timeout: waitTime, maximumAge: 0 }
+                );
+            } catch (error) {
+                console.error("Synchronous error during geolocation:", error);
+                clearTimeout(timeout);
+                handleFallback();
+            }
+        }
+
         const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
         // --- MOCK DATA STORE ---
